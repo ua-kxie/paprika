@@ -5,7 +5,7 @@ At the moment, Paprika is just me poking around the NgSpice sharedspice.dll from
 
 ## Explanation
 The program in main.rs simply initializes NgSpice and loads the netlist "dcop.cir".
-The netlist includes statements to perform the dc operating point analysis, and to output it into a file called "dcop.sim".
+The netlist includes statements to perform the dc operating point analysis, and to output it into a file called "dcop.raw".
 Inside, all nets in the circuit is listed, followed by an array of float64 corresponding to the voltages of those nodes. 
 
 ## Resources
