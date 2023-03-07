@@ -11,8 +11,11 @@ Inside, all nets in the circuit is listed, followed by an array of float64 corre
 ## Resources
 
 [NgSpice Beginner Tutorial](https://ngspice.sourceforge.io/ngspice-tutorial.html)
+
 [NgSpice Manual](https://ngspice.sourceforge.io/docs/ngspice-39-manual.pdf)
+
 [KiCad NgSpice Binding (cpp)](https://gitlab.com/kicad/code/kicad/-/blob/master/eeschema/sim/ngspice.cpp)
+
 [PySpice NgSpice Binding (Python)](https://github.com/PySpice-org/PySpice/blob/master/PySpice/Spice/NgSpice/Shared.py)
 
 Some existing NgSpice based simulators can be found [here](https://ngspice.sourceforge.io/resources.html)
