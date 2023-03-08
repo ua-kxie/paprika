@@ -26,7 +26,7 @@ extern fn cb_controlled_exit(status: c_int, immediate: bool, exit_on_quit: bool,
 }
 extern fn cb_send_data(pvecvaluesall: *const NgVecvaluesall, count: c_int, id: c_int, user: c_void) -> c_int{
     println!("senddata: {}; {}; {:?}; {:?};", count, id, user, pvecvaluesall);
-    unsafe{(*pvecvaluesall).debug();}
+    unsafe{(*pvecvaluesall).debug();}  // simulation results are returned via this callback. 
     return 0;
 }
 extern fn cb_send_init_data(pvecinfoall: *const i8, count: c_int, id: c_int, user: c_void) -> c_int{
@@ -58,13 +58,14 @@ impl NgVecvalues {
 struct NgVecvaluesall {
     count: c_int,
     index: c_int,
-    vecsa: *const NgVecvalues
+    vecsa: *const *const NgVecvalues,
 }
 impl NgVecvaluesall {
     fn debug(self) {
-        println!("{:?}\n{:?}\n{:?}", self.count, self.index, self.vecsa);
-        if let Some(vec1) = unsafe{self.vecsa.as_ref()} {
-            vec1.debug();
+        let vec1 = unsafe{std::slice::from_raw_parts(self.vecsa, self.count as usize)};
+        for s in vec1.iter() {
+            let a = unsafe{ &*(*s) };
+            a.debug();
         }
     }
 }
