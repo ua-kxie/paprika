@@ -10,9 +10,9 @@ use libc::*;
 
 extern fn cbw_send_char<T>(msg: *const c_char, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
     unsafe{
-        // let a = std::ffi::CStr::from_ptr(msg);
-        // dbg!(user)
-        <T as NgSpiceManager>::cb_send_char("heh".to_string(), id);
+        // &mut *(user as *mut T)
+        // let a = std::ffi::CStr::from_ptr(msg).to_str().unwrap();
+        <T as NgSpiceManager>::cb_send_char(&mut *(user as *mut T), std::ffi::CStr::from_ptr(msg).to_str().unwrap(), id);
     }
     return 0;
 }
@@ -25,9 +25,12 @@ extern fn cbw_controlled_exit(status: c_int, immediate: bool, exit_on_quit: bool
     println!("ctrldexit: {}; {}; {}; {}; {:?}", status, immediate, exit_on_quit, id, user);
     return 0;
 }
-extern fn cbw_send_data(pvecvaluesall: *const NgVecvaluesall, count: c_int, id: c_int, user: *const c_void) -> c_int{
-    println!("senddata: {}; {}; {:?}; {:?};", count, id, user, pvecvaluesall);
-    unsafe{(*pvecvaluesall).debug();}  // simulation results are returned via this callback. 
+extern fn cbw_send_data<T>(pvecvaluesall: *const NgVecvaluesall, count: c_int, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
+    // println!("senddata: {}; {}; {:?}; {:?};", count, id, user, pvecvaluesall);
+    // unsafe{(*pvecvaluesall).debug();}  // simulation results are returned via this callback. 
+    unsafe{
+        <T as NgSpiceManager>::cb_send_data(&mut *(user as *mut T), pvecvaluesall as *const char, count, id);
+    }
     return 0;
 }
 extern fn cbw_send_init_data(_pvecinfoall: *const i8, count: c_int, id: c_int, user: *const c_void) -> c_int{
@@ -41,7 +44,7 @@ extern fn cbw_bgthread_running(finished: bool, id: c_int, user: *const c_void) -
 
 #[derive(Copy, Clone)]
 #[repr(C)]
-struct NgVecvalues {
+pub struct NgVecvalues {
     name: *const c_char,
     creal: c_double,
     cimag: c_double,
@@ -56,10 +59,10 @@ impl NgVecvalues {
 
 #[derive(Copy, Clone)]
 #[repr(C)]
-struct NgVecvaluesall {
-    count: c_int,
-    index: c_int,
-    vecsa: *const *const NgVecvalues,
+pub struct NgVecvaluesall {
+    pub count: c_int,
+    pub index: c_int,
+    pub vecsa: *const *const NgVecvalues,
 }
 impl NgVecvaluesall {
     fn debug(self) {
@@ -103,7 +106,8 @@ impl VTableV0 {
 }
 
 pub trait NgSpiceManager {
-    fn cb_send_char(msg: String, id: i32);
+    fn cb_send_char(&mut self, msg: &str, id: i32);
+    fn cb_send_data(&mut self, ptr: *const char, count: i32, id: i32);
 }
 
 pub struct NgSpice {
@@ -131,16 +135,16 @@ impl NgSpice {
         }
     }
 
-    pub fn init<T>(&self, manager: T) -> bool where T: NgSpiceManager {
+    pub fn init<T>(&self, manager: &T) -> bool where T: NgSpiceManager {
         unsafe{
             (self.api.init)(
                 cbw_send_char::<T>, 
                 cbw_send_stat, 
                 cbw_controlled_exit, 
-                cbw_send_data, 
+                cbw_send_data::<T>, 
                 cbw_send_init_data, 
                 cbw_bgthread_running, 
-                std::mem::transmute(std::ptr::addr_of!(manager))
+                std::mem::transmute(std::ptr::addr_of!(*manager))
             )
         }
     }

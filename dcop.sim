@@ -1,4 +1,4 @@
 .control
 op
-write dcop.raw
+*write dcop.raw
 .endc

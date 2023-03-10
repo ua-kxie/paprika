@@ -10,6 +10,8 @@ Inside, all nets in the circuit is listed, followed by an array of float64 corre
 
 ## Resources
 
+[Rust idiomatic NgSpice bindings](https://github.com/NyanCAD/rust-ngspice)
+
 [NgSpice Beginner Tutorial](https://ngspice.sourceforge.io/ngspice-tutorial.html)
 
 [NgSpice Manual](https://ngspice.sourceforge.io/docs/ngspice-39-manual.pdf)
