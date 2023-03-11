@@ -16,12 +16,12 @@ extern fn cbw_send_char<T>(msg: *const c_char, id: c_int, user: *const c_void) -
     }
     return 0;
 }
-extern fn cbw_send_stat(msg: *const c_char, id: c_int, user: *const c_void) -> c_int{
+extern fn cbw_send_stat<T>(msg: *const c_char, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
     let cstr = unsafe { std::ffi::CStr::from_ptr(msg)};
     println!("sendstat: {:?}; {}; {:?}", cstr, id, user);
     return 0;
 }
-extern fn cbw_controlled_exit(status: c_int, immediate: bool, exit_on_quit: bool, id: c_int, user: *const c_void) -> c_int{
+extern fn cbw_controlled_exit<T>(status: c_int, immediate: bool, exit_on_quit: bool, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
     println!("ctrldexit: {}; {}; {}; {}; {:?}", status, immediate, exit_on_quit, id, user);
     return 0;
 }
@@ -37,25 +37,51 @@ extern fn cbw_send_data<T>(pvecvaluesall: *const NgVecvaluesall, count: c_int, i
             pkvecvalues.push((*(*item)).to_pk());
         }
         // create native PkVecvaluesall
-        let pkvecvaluesall = PkVecvaluesall{count:(*pvecvaluesall).count, index: (*pvecvaluesall).index, vecsa: pkvecvalues};
-
+        let pkvecinfoall = PkVecvaluesall{
+            count:(*pvecvaluesall).count, 
+            index: (*pvecvaluesall).index, 
+            vecsa: pkvecvalues
+        };
+        
         // call native callback
-        <T as NgSpiceManager>::cb_send_data(&mut *(user as *mut T), pkvecvaluesall, count, id);
+        <T as NgSpiceManager>::cb_send_data(&mut *(user as *mut T), pkvecinfoall, count, id);
     }
     return 0;
 }
 extern fn cbw_send_init_data<T>(pvecinfoall: *const NgVecinfoall, count: c_int, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
     unsafe {
-        let a = *pvecinfoall;
-        let b = a.vecs;
+        let vecinfos_slice = std::slice::from_raw_parts((*pvecinfoall).vecs, (*pvecinfoall).veccount as usize);
+        // create vec containing 'count' number of PkVecvalues
+        let mut pkvecinfos = Vec::<PkVecinfo>::with_capacity((*pvecinfoall).veccount as usize);
+        // for item in vecvals_slice:
+        for item in vecinfos_slice.iter() {
+            // create native PkVecvalues and store into vec
+            pkvecinfos.push((*(*item)).to_pk());
+        }
+        // create native PkVecvaluesall
+        // let pkvecinfoall = PkVecinfoall{
+        //     name: std::ffi::CStr::from_ptr((*pvecinfoall).name).to_str().unwrap().to_string(),
+        //     title: std::ffi::CStr::from_ptr((*pvecinfoall).title).to_str().unwrap().to_string(),
+        //     date: std::ffi::CStr::from_ptr((*pvecinfoall).date).to_str().unwrap().to_string(),
+        //     stype: std::ffi::CStr::from_ptr((*pvecinfoall).type_).to_str().unwrap().to_string(),
+        //     count: (*pvecinfoall).veccount,
+        //     vecs: pkvecinfos,
+        // };
+        let pkvecinfoall = PkVecinfoall{
+            // name: "".to_string(),
+            // title: "".to_string(),
+            // date: "".to_string(),
+            // stype: "".to_string(),
+            count: 1,
+            // vecs: Vec::<PkVecinfo>::with_capacity(0),
+        };
         // let c = *(*b);
-        println!("sendinitdata: {:?}; {}; {}; {:?};", *pvecinfoall, count, id, user);
-        println!("sendinitdata: {:?};", *(*b));
-        // <T as NgSpiceManager>::cb_send_data(&mut *(user as *mut T), pkvecinfosall, count, id);
+        // println!("sendinitdata: {:?}; {}; {}; {:?};", pkvecinfoall, count, id, user);
+        <T as NgSpiceManager>::cb_send_init_data(&mut *(user as *mut T), pkvecinfoall, count, id);
     }
     return 0;
 }
-extern fn cbw_bgthread_running(finished: bool, id: c_int, user: *const c_void) -> c_int{
+extern fn cbw_bgthread_running<T>(finished: bool, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
     println!("bgrunning: {}; {}; {:?}", finished, id, user);
     return 0;
 }
@@ -65,8 +91,29 @@ struct NgVecinfo {
     number: c_int,
     vecname: *const c_char,
     is_real: bool,
-    pdvec: *const c_void,
-    pdvecscale: *const c_void,
+    pdvec: *const c_void,  // not elaborated in the docs - not sure if intended for use
+    pdvecscale: *const c_void,  // not elaborated in the docs - not sure if intended for use
+}
+impl NgVecinfo {
+    fn to_pk(&self) -> PkVecinfo {
+        unsafe {
+            PkVecinfo{
+                number: self.number,
+                name: std::ffi::CStr::from_ptr(self.vecname).to_str().unwrap().to_string(),
+                is_real: self.is_real,
+                pdvec: self.pdvec as usize,
+                pdvecscale: self.pdvecscale as usize,
+            }
+        }
+    }
+}
+#[derive(Clone, Debug)]
+pub struct PkVecinfo {
+    pub number: i32,
+    pub name: String,
+    pub is_real: bool,
+    pdvec: usize,  // not elaborated in the docs - not sure if intended for use
+    pdvecscale: usize,  // not elaborated in the docs - not sure if intended for use
 }
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
@@ -77,6 +124,16 @@ struct NgVecinfoall {
     type_: *const c_char,
     veccount: c_int,
     vecs: *const *const NgVecinfo,
+}
+
+#[derive(Clone, PartialEq, PartialOrd, Debug)]
+pub struct PkVecinfoall{
+    // pub name: String,
+    // pub title: String,
+    // pub date: String,
+    // pub stype: String,
+    pub count: i32,
+    // pub vecs: Vec<PkVecinfo>,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -170,6 +227,7 @@ impl VTableV0 {
 
 pub trait NgSpiceManager {
     fn cb_send_char(&mut self, msg: &str, id: i32);
+    fn cb_send_init_data(&mut self, pkvecinfoall: PkVecinfoall, count: i32, id: i32);
     fn cb_send_data(&mut self, pkvecvaluesall: PkVecvaluesall, count: i32, id: i32);
 }
 
@@ -202,11 +260,11 @@ impl NgSpice {
         unsafe{
             (self.api.init)(
                 cbw_send_char::<T>, 
-                cbw_send_stat, 
-                cbw_controlled_exit, 
+                cbw_send_stat::<T>, 
+                cbw_controlled_exit::<T>, 
                 cbw_send_data::<T>, 
                 cbw_send_init_data::<T>, 
-                cbw_bgthread_running, 
+                cbw_bgthread_running::<T>, 
                 std::mem::transmute(std::ptr::addr_of!(*manager))
             )
         }
