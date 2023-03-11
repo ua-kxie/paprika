@@ -11,7 +11,16 @@ use libc::*;
 extern fn cbw_send_char<T>(msg: *const c_char, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
     unsafe{
         // &mut *(user as *mut T)
-        // let a = std::ffi::CStr::from_ptr(msg).to_str().unwrap();
+        // let result = std::ffi::CStr::from_ptr(msg).to_str();
+        // let mut msgstr = "";
+        // match result {
+        //     Ok(s)=>{
+        //         let msgstr = s;
+        //     },
+        //     Err(msg)=>{
+        //        println!("Error msg is {}", msg);
+        //     }
+        //  }
         <T as NgSpiceManager>::cb_send_char(&mut *(user as *mut T), std::ffi::CStr::from_ptr(msg).to_str().unwrap(), id);
     }
     return 0;
@@ -50,15 +59,15 @@ extern fn cbw_send_data<T>(pvecvaluesall: *const NgVecvaluesall, count: c_int, i
 }
 extern fn cbw_send_init_data<T>(pvecinfoall: *const NgVecinfoall, count: c_int, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
     unsafe {
-        let vecinfos_slice = std::slice::from_raw_parts((*pvecinfoall).vecs, (*pvecinfoall).veccount as usize);
-        // create vec containing 'count' number of PkVecvalues
-        let mut pkvecinfos = Vec::<PkVecinfo>::with_capacity((*pvecinfoall).veccount as usize);
-        // for item in vecvals_slice:
-        for item in vecinfos_slice.iter() {
-            // create native PkVecvalues and store into vec
-            pkvecinfos.push((*(*item)).to_pk());
-        }
-        // create native PkVecvaluesall
+        // let vecinfos_slice = std::slice::from_raw_parts((*pvecinfoall).vecs, (*pvecinfoall).veccount as usize);
+        // // create vec containing 'count' number of PkVecvalues
+        // let mut pkvecinfos = Vec::<PkVecinfo>::with_capacity((*pvecinfoall).veccount as usize);
+        // // for item in vecvals_slice:
+        // for item in vecinfos_slice.iter() {
+        //     // create native PkVecvalues and store into vec
+        //     pkvecinfos.push((*(*item)).to_pk());
+        // }
+        // // create native PkVecvaluesall
         // let pkvecinfoall = PkVecinfoall{
         //     name: std::ffi::CStr::from_ptr((*pvecinfoall).name).to_str().unwrap().to_string(),
         //     title: std::ffi::CStr::from_ptr((*pvecinfoall).title).to_str().unwrap().to_string(),
@@ -67,16 +76,11 @@ extern fn cbw_send_init_data<T>(pvecinfoall: *const NgVecinfoall, count: c_int, 
         //     count: (*pvecinfoall).veccount,
         //     vecs: pkvecinfos,
         // };
+        // // println!("sendinitdata: {:?}; {}; {}; {:?};", pkvecinfoall, count, id, user);
+        // <T as NgSpiceManager>::cb_send_init_data(&mut *(user as *mut T), pkvecinfoall, count, id);
         let pkvecinfoall = PkVecinfoall{
-            // name: "".to_string(),
-            // title: "".to_string(),
-            // date: "".to_string(),
-            // stype: "".to_string(),
             count: 1,
-            // vecs: Vec::<PkVecinfo>::with_capacity(0),
         };
-        // let c = *(*b);
-        // println!("sendinitdata: {:?}; {}; {}; {:?};", pkvecinfoall, count, id, user);
         <T as NgSpiceManager>::cb_send_init_data(&mut *(user as *mut T), pkvecinfoall, count, id);
     }
     return 0;
@@ -126,7 +130,7 @@ struct NgVecinfoall {
     vecs: *const *const NgVecinfo,
 }
 
-#[derive(Clone, PartialEq, PartialOrd, Debug)]
+#[derive(Clone, Debug)]
 pub struct PkVecinfoall{
     // pub name: String,
     // pub title: String,
@@ -178,15 +182,6 @@ struct NgVecvaluesall {
     index: c_int,
     vecsa: *const *const NgVecvalues,
 }
-impl NgVecvaluesall {
-    fn debug(self) {
-        let vec1 = unsafe{std::slice::from_raw_parts(self.vecsa, self.count as usize)};
-        for s in vec1.iter() {
-            let a = unsafe{ &*(*s) };
-            a.debug();
-        }
-    }
-}
 #[derive(Clone, PartialEq, PartialOrd, Debug)]
 pub struct PkVecvaluesall{
     pub count: i32,
@@ -194,7 +189,7 @@ pub struct PkVecvaluesall{
     pub vecsa: Vec<PkVecvalues>,
 }
 
-type NgSpiceInit = fn(
+type NgSpiceInit = extern fn(
     extern fn(*const c_char, c_int, *const c_void) -> c_int, 
     extern fn(*const c_char, c_int, *const c_void) -> c_int, 
     extern fn(c_int, bool, bool, c_int, *const c_void) -> c_int, 
@@ -203,7 +198,7 @@ type NgSpiceInit = fn(
     extern fn(bool, c_int, *const c_void) -> c_int, 
     *const c_char, 
 ) -> bool;
-type NgSpiceCommand = fn(std::ffi::CString) -> bool;
+type NgSpiceCommand = extern fn(*const c_char) -> bool;
 
 struct VTableV0 {
     init: RawSymbol<NgSpiceInit>,
@@ -271,6 +266,7 @@ impl NgSpice {
     }
 
     pub fn command(&self, command: &str) -> bool {
-        (self.api.command)(std::ffi::CString::new(command).unwrap())
+        let cmdstr = std::ffi::CString::new(command).unwrap();
+        (self.api.command)(cmdstr.as_ptr())
     }
 }
