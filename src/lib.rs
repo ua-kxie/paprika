@@ -5,26 +5,26 @@ extern crate libc;
 use libloading::os::unix::Symbol as RawSymbol;
 #[cfg(windows)]
 use libloading::os::windows::Symbol as RawSymbol;
-use libloading::{Library, Symbol};
+use libloading::{Library};
 use libc::*;
 
 extern fn cbw_send_char<T>(msg: *const c_char, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
     unsafe{
         <T as NgSpiceManager>::cb_send_char(&mut *(user as *mut T), std::ffi::CStr::from_ptr(msg).to_str().unwrap(), id);
     }
-    return 0;
+    0
 }
 extern fn cbw_send_stat<T>(msg: *const c_char, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
     unsafe {
         <T as NgSpiceManager>::cb_send_stat(&mut *(user as *mut T), std::ffi::CStr::from_ptr(msg).to_str().unwrap(), id);
     }
-    return 0;
+    0
 }
 extern fn cbw_controlled_exit<T>(status: c_int, immediate: bool, exit_on_quit: bool, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
     unsafe {
         <T as NgSpiceManager>::cb_ctrldexit(&mut *(user as *mut T), status, immediate, exit_on_quit, id);
     }
-    return 0;
+    0
 }
 extern fn cbw_send_data<T>(pvecvaluesall: *const NgVecvaluesall, count: c_int, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
     // do not free pvecvaluesall or pvecvalues - the memory is reused by ngspice
@@ -47,7 +47,7 @@ extern fn cbw_send_data<T>(pvecvaluesall: *const NgVecvaluesall, count: c_int, i
         // call native callback
         <T as NgSpiceManager>::cb_send_data(&mut *(user as *mut T), pkvecinfoall, count, id);
     }
-    return 0;
+    0
 }
 extern fn cbw_send_init_data<T>(pvecinfoall: *const NgVecinfoall, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
     unsafe {
@@ -71,13 +71,26 @@ extern fn cbw_send_init_data<T>(pvecinfoall: *const NgVecinfoall, id: c_int, use
         // call native callback
         <T as NgSpiceManager>::cb_send_init(&mut *(user as *mut T), pkvecinfoall, id);
     }
-    return 0;
+    0
 }
 extern fn cbw_bgthread_running<T>(finished: bool, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
     unsafe {
         <T as NgSpiceManager>::cb_bgt_state(&mut *(user as *mut T), finished, id);
     }
-    return 0;
+    0
+}
+#[derive(Copy, Clone, Debug)]
+#[repr(C)]
+struct EvtData {
+    dcop: c_double,
+    step: c_int,
+    node_value: *const c_char,
+}
+#[derive(Copy, Clone, Debug)]
+#[repr(C)]
+struct NgEvtSharedData {
+    evt_dect: *const EvtData,
+    num_steps: c_int,
 }
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
@@ -105,7 +118,7 @@ struct NgVecinfo {
     pdvecscale: *const c_void,  // not elaborated in the docs - not sure if intended for use
 }
 impl NgVecinfo {
-    fn to_pk(&self) -> PkVecinfo {
+    fn to_pk(self) -> PkVecinfo {
         unsafe {
             PkVecinfo{
                 number: self.number,
@@ -118,6 +131,7 @@ impl NgVecinfo {
     }
 }
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct PkVecinfo {
     pub number: i32,
     pub name: String,
@@ -156,7 +170,7 @@ struct NgVecvalues {
     is_complex: bool
 }
 impl NgVecvalues {
-    fn to_pk(&self) -> PkVecvalues {
+    fn to_pk(self) -> PkVecvalues {
         unsafe {
             PkVecvalues{
                 name: std::ffi::CStr::from_ptr(self.name).to_owned().into_string().unwrap(),
@@ -209,36 +223,63 @@ type NgSpiceInitSync = extern fn(
     *const c_void,
 ) -> c_int;
 type NgSpiceCommand = extern fn(*const c_char) -> c_int;
-type NgSpiceRunning = extern fn(c_void) -> bool;
-type NgGet_Vec_Info = extern fn(*const c_char) -> *const NgVectorinfo;
-type NgSpice_Circ = extern fn(*const *const c_char) -> c_int;
-type NgSpice_CurPlot = extern fn(c_void) -> *const c_char;
-type NgSpice_AllPlots = extern fn(c_void) -> *const *const c_char;
-type NgSpice_AllVecs = extern fn(*const c_char) -> *const *const c_char;
-type NgSpice_SetBkpt = extern fn(c_double) -> bool;
-type NgCM_Input_Path = extern fn(*const c_char) -> *const c_char;
-type NgSpice_Init_Evt = extern fn(
+type NgGetVecInfo = extern fn(*const c_char) -> *const NgVectorinfo;
+type NgCMInputPath = extern fn(*const c_char) -> *const c_char;
+type NgGetEvtNodeInfo = extern fn(*const c_char) -> *const NgEvtSharedData;
+type NgSpiceAllEvtNodes = extern fn(c_void) -> *const *const c_char;
+type NgSpiceInitEvt = extern fn(
     extern fn(c_int, c_double, c_double, *const c_char, *const c_void, c_int, c_int, c_int, *const c_void) -> c_int,  // SendEvtData
     extern fn(c_int, c_int, *const c_char, *const c_char, c_int, *const c_void),  // SendInitEvtData
     *const c_void,
-) -> c_int;  // only found in docs, 
+) -> c_int;
+type NgSpiceCirc = extern fn(*const *const c_char) -> c_int;
+type NgSpiceCurPlot = extern fn(c_void) -> *const c_char;
+type NgSpiceAllPlots = extern fn(c_void) -> *const *const c_char;
+type NgSpiceAllVecs = extern fn(*const c_char) -> *const *const c_char;
+type NgSpiceRunning = extern fn(c_void) -> bool;
+type NgSpiceSetBkpt = extern fn(c_double) -> bool;
 
-
+#[allow(dead_code)]
 struct VTableV0 {
     init: RawSymbol<NgSpiceInit>,
-    command: RawSymbol<NgSpiceCommand>
+    init_sync: RawSymbol<NgSpiceInitSync>,
+    command: RawSymbol<NgSpiceCommand>,
+    get_vec_info: RawSymbol<NgGetVecInfo>,
+    cm_input_path: RawSymbol<NgCMInputPath>,
+    get_evtnode_info: RawSymbol<NgGetEvtNodeInfo>,
+    get_all_evtnodes: RawSymbol<NgSpiceAllEvtNodes>,
+    init_evt: RawSymbol<NgSpiceInitEvt>,
+    send_circ: RawSymbol<NgSpiceCirc>,
+    get_curplotname: RawSymbol<NgSpiceCurPlot>,
+    get_allplots: RawSymbol<NgSpiceAllPlots>,
+    get_allvecs: RawSymbol<NgSpiceAllVecs>,
+    is_running: RawSymbol<NgSpiceRunning>,
+    set_brkpt: RawSymbol<NgSpiceSetBkpt>,
 } 
 
 impl VTableV0 {
-    unsafe fn new(library: &Library) -> VTableV0 {
-        let init: Symbol<NgSpiceInit> = library.get(b"ngSpice_Init\0").unwrap();
-        let init = init.into_raw();
-        let command: Symbol<NgSpiceCommand> = library.get(b"ngSpice_Command\0").unwrap();
-        let command = command.into_raw();
+    unsafe fn get_symbol<T>(lib: &Library, sname: &[u8]) -> RawSymbol<T> {
+        let symbol = lib.get(sname).unwrap();
+        libloading::Symbol::<T>::into_raw(symbol)
+    }
 
+    unsafe fn new(library: &Library) -> VTableV0 {
+        // get symbols (same order as they appear in sharedspice.h)
         VTableV0 {
-            init: init,
-            command: command,
+            init: VTableV0::get_symbol::<NgSpiceInit>(library, b"ngSpice_Init\0"),
+            init_sync: VTableV0::get_symbol::<NgSpiceInitSync>(library, b"ngSpice_Init_Sync\0"),
+            command: VTableV0::get_symbol::<NgSpiceCommand>(library, b"ngSpice_Command\0"),
+            get_vec_info: VTableV0::get_symbol::<NgGetVecInfo>(library, b"ngGet_Vec_Info\0"),
+            cm_input_path: VTableV0::get_symbol::<NgCMInputPath>(library, b"ngCM_Input_Path\0"),
+            get_evtnode_info: VTableV0::get_symbol::<NgGetEvtNodeInfo>(library, b"ngGet_Evt_NodeInfo\0"),
+            get_all_evtnodes: VTableV0::get_symbol::<NgSpiceAllEvtNodes>(library, b"ngSpice_AllEvtNodes\0"),
+            init_evt: VTableV0::get_symbol::<NgSpiceInitEvt>(library, b"ngSpice_Init_Evt\0"),
+            send_circ: VTableV0::get_symbol::<NgSpiceCirc>(library, b"ngSpice_Circ\0"),
+            get_curplotname: VTableV0::get_symbol::<NgSpiceCurPlot>(library, b"ngSpice_CurPlot\0"),
+            get_allplots: VTableV0::get_symbol::<NgSpiceAllPlots>(library, b"ngSpice_AllPlots\0"),
+            get_allvecs: VTableV0::get_symbol::<NgSpiceAllVecs>(library, b"ngSpice_AllVecs\0"),
+            is_running: VTableV0::get_symbol::<NgSpiceRunning>(library, b"ngSpice_running\0"),
+            set_brkpt: VTableV0::get_symbol::<NgSpiceSetBkpt>(library, b"ngSpice_SetBkpt\0"),
         }
     }
 }
@@ -267,11 +308,11 @@ impl Default for NgSpice {
 impl NgSpice {
     pub fn new() -> NgSpice {
         unsafe {
-            let library = Library::new("src/ngspice.dll").unwrap();
+            let lib = Library::new("src/ngspice.dll").unwrap();
 
-            let vtable = VTableV0::new(&library);
+            let vtable = VTableV0::new(&lib);
             NgSpice {
-                library: library,
+                library: lib,
                 api: vtable,
             }
         }
