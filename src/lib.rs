@@ -10,28 +10,20 @@ use libc::*;
 
 extern fn cbw_send_char<T>(msg: *const c_char, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
     unsafe{
-        // &mut *(user as *mut T)
-        // let result = std::ffi::CStr::from_ptr(msg).to_str();
-        // let mut msgstr = "";
-        // match result {
-        //     Ok(s)=>{
-        //         let msgstr = s;
-        //     },
-        //     Err(msg)=>{
-        //        println!("Error msg is {}", msg);
-        //     }
-        //  }
         <T as NgSpiceManager>::cb_send_char(&mut *(user as *mut T), std::ffi::CStr::from_ptr(msg).to_str().unwrap(), id);
     }
     return 0;
 }
 extern fn cbw_send_stat<T>(msg: *const c_char, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
-    let cstr = unsafe { std::ffi::CStr::from_ptr(msg)};
-    println!("sendstat: {:?}; {}; {:?}", cstr, id, user);
+    unsafe {
+        <T as NgSpiceManager>::cb_send_stat(&mut *(user as *mut T), std::ffi::CStr::from_ptr(msg).to_str().unwrap(), id);
+    }
     return 0;
 }
 extern fn cbw_controlled_exit<T>(status: c_int, immediate: bool, exit_on_quit: bool, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
-    println!("ctrldexit: {}; {}; {}; {}; {:?}", status, immediate, exit_on_quit, id, user);
+    unsafe {
+        <T as NgSpiceManager>::cb_ctrldexit(&mut *(user as *mut T), status, immediate, exit_on_quit, id);
+    }
     return 0;
 }
 extern fn cbw_send_data<T>(pvecvaluesall: *const NgVecvaluesall, count: c_int, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
@@ -53,7 +45,6 @@ extern fn cbw_send_data<T>(pvecvaluesall: *const NgVecvaluesall, count: c_int, i
         };
         
         // call native callback
-        println!("send data {:p}, {:p}", user, &mut *(user as *mut T));
         <T as NgSpiceManager>::cb_send_data(&mut *(user as *mut T), pkvecinfoall, count, id);
     }
     return 0;
@@ -77,14 +68,32 @@ extern fn cbw_send_init_data<T>(pvecinfoall: *const NgVecinfoall, id: c_int, use
             count: (*pvecinfoall).veccount,
             vecs: pkvecinfos,
         };
-        println!("send init {:p}, {:p}", user, &mut *(user as *mut T));
-        <T as NgSpiceManager>::cb_send_init_data(&mut *(user as *mut T), pkvecinfoall, id);
+        // call native callback
+        <T as NgSpiceManager>::cb_send_init(&mut *(user as *mut T), pkvecinfoall, id);
     }
     return 0;
 }
 extern fn cbw_bgthread_running<T>(finished: bool, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
-    println!("bgrunning: {}; {}; {:?}", finished, id, user);
+    unsafe {
+        <T as NgSpiceManager>::cb_bgt_state(&mut *(user as *mut T), finished, id);
+    }
     return 0;
+}
+#[derive(Copy, Clone, Debug)]
+#[repr(C)]
+struct NgComplex {
+    cx_real: c_double,
+    cx_imag: c_double,
+}
+#[derive(Copy, Clone, Debug)]
+#[repr(C)]
+struct NgVectorinfo {
+    v_name: *const c_char,
+    v_type: c_int,
+    v_flag: c_short,
+    v_realdata: c_double,
+    v_compdata: *const NgComplex,
+    v_length: c_int,
 }
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
@@ -147,9 +156,6 @@ struct NgVecvalues {
     is_complex: bool
 }
 impl NgVecvalues {
-    fn debug(&self) {
-        println!("{:?}\n{:?}\n{:?}\n{:?}\n{:?}\n", unsafe { std::ffi::CStr::from_ptr(self.name)}, self.creal, self.cimag, self.is_scale, self.is_complex);
-    }
     fn to_pk(&self) -> PkVecvalues {
         unsafe {
             PkVecvalues{
@@ -194,8 +200,29 @@ type NgSpiceInit = extern fn(
     extern fn(*const NgVecinfoall, c_int, *const c_void) -> c_int,  
     extern fn(bool, c_int, *const c_void) -> c_int, 
     *const c_char, 
-) -> bool;
-type NgSpiceCommand = extern fn(*const c_char) -> bool;
+) -> c_int;
+type NgSpiceInitSync = extern fn(
+    extern fn(*const c_double, c_double, *const c_char, c_int, *const c_void) -> c_int,  // GetVSRCData
+    extern fn(*const c_double, c_double, *const c_char, c_int, *const c_void) -> c_int,  // GetISRCData
+    extern fn(c_double, *const c_double, c_double, c_int, c_int, *const c_void) -> c_int,  // GetSyncData
+    *const c_int,
+    *const c_void,
+) -> c_int;
+type NgSpiceCommand = extern fn(*const c_char) -> c_int;
+type NgSpiceRunning = extern fn(c_void) -> bool;
+type NgGet_Vec_Info = extern fn(*const c_char) -> *const NgVectorinfo;
+type NgSpice_Circ = extern fn(*const *const c_char) -> c_int;
+type NgSpice_CurPlot = extern fn(c_void) -> *const c_char;
+type NgSpice_AllPlots = extern fn(c_void) -> *const *const c_char;
+type NgSpice_AllVecs = extern fn(*const c_char) -> *const *const c_char;
+type NgSpice_SetBkpt = extern fn(c_double) -> bool;
+type NgCM_Input_Path = extern fn(*const c_char) -> *const c_char;
+type NgSpice_Init_Evt = extern fn(
+    extern fn(c_int, c_double, c_double, *const c_char, *const c_void, c_int, c_int, c_int, *const c_void) -> c_int,  // SendEvtData
+    extern fn(c_int, c_int, *const c_char, *const c_char, c_int, *const c_void),  // SendInitEvtData
+    *const c_void,
+) -> c_int;  // only found in docs, 
+
 
 struct VTableV0 {
     init: RawSymbol<NgSpiceInit>,
@@ -204,7 +231,6 @@ struct VTableV0 {
 
 impl VTableV0 {
     unsafe fn new(library: &Library) -> VTableV0 {
-        println!("Loading API version 0...");
         let init: Symbol<NgSpiceInit> = library.get(b"ngSpice_Init\0").unwrap();
         let init = init.into_raw();
         let command: Symbol<NgSpiceCommand> = library.get(b"ngSpice_Command\0").unwrap();
@@ -219,8 +245,11 @@ impl VTableV0 {
 
 pub trait NgSpiceManager {
     fn cb_send_char(&mut self, msg: &str, id: i32);
-    fn cb_send_init_data(&mut self, pkvecinfoall: PkVecinfoall, id: i32);
+    fn cb_send_stat(&mut self, msg: &str, id: i32);
+    fn cb_ctrldexit(&mut self, status: i32, is_immediate: bool, is_quit: bool, id: i32);
     fn cb_send_data(&mut self, pkvecvaluesall: PkVecvaluesall, count: i32, id: i32);
+    fn cb_send_init(&mut self, pkvecinfoall: PkVecinfoall, id: i32);
+    fn cb_bgt_state(&mut self, is_fin: bool, id: i32);
 }
 
 pub struct NgSpice {
@@ -251,7 +280,7 @@ impl NgSpice {
     pub fn init<T>(&self, manager: &T) -> bool where T: NgSpiceManager {
         unsafe{
             println!("addr in {:p}", manager);
-            (self.api.init)(
+            let ret = (self.api.init)(
                 cbw_send_char::<T>, 
                 cbw_send_stat::<T>, 
                 cbw_controlled_exit::<T>, 
@@ -259,12 +288,14 @@ impl NgSpice {
                 cbw_send_init_data::<T>, 
                 cbw_bgthread_running::<T>, 
                 std::mem::transmute(std::ptr::addr_of!(*manager))
-            )
+            );
+            ret != 0
         }
     }
 
     pub fn command(&self, command: &str) -> bool {
         let cmdstr = std::ffi::CString::new(command).unwrap();
-        (self.api.command)(cmdstr.as_ptr())
+        let ret = (self.api.command)(cmdstr.as_ptr());
+        ret != 0
     }
 }

@@ -12,3 +12,4 @@ path = "src/lib.rs"
 [dependencies]
 libloading = "0.7"
 libc = "0.2"
+colored = "2.0"
