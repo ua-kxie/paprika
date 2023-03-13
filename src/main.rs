@@ -3,20 +3,28 @@
 // https://users.rust-lang.org/t/callback-based-c-ffi/26583/5
 
 use ::paprika;
-use paprika::{PkVecvaluesall, PkVecinfoall};
+use paprika::*;
 
 use colored::Colorize;
-
+#[allow(dead_code)]
 struct PkSpiceManager{
+    lib: PkSpice,
+    vec_char: Vec<String>,
+    vec_stat: Vec<String>,
     vec_pkvecinfoall: Vec<PkVecinfoall>,
     vec_pkvecvalsall: Vec<PkVecvaluesall>,
 }
-impl PkSpiceManager{
-    fn new() -> PkSpiceManager{
-        PkSpiceManager{
-            vec_pkvecinfoall: Vec::<paprika::PkVecinfoall>::new(),
-            vec_pkvecvalsall: Vec::<paprika::PkVecvaluesall>::new(),
-        }
+impl PkSpiceManager {
+    fn new() -> PkSpiceManager {
+        let manager = PkSpiceManager{ 
+            lib: PkSpice::new(), 
+            vec_char: Vec::<String>::new(),
+            vec_stat: Vec::<String>::new(),
+            vec_pkvecinfoall: Vec::<PkVecinfoall>::new(),
+            vec_pkvecvalsall: Vec::<PkVecvaluesall>::new(),
+        };
+        manager.lib.init(&manager);
+        manager
     }
 }
 #[allow(unused_variables)]
@@ -31,7 +39,6 @@ impl paprika::PkSpiceManager for PkSpiceManager{
         println!("{}", msgc);
     }
     fn cb_send_stat(&mut self, msg: String, id: i32) {
-        // println!("send_stat {}; {};", msg.blue(), id);
         println!("{}", msg.blue());
     }
     fn cb_ctrldexit(&mut self, status: i32, is_immediate: bool, is_quit: bool, id: i32) {
@@ -49,12 +56,9 @@ impl paprika::PkSpiceManager for PkSpiceManager{
     }
 }
 fn main() {
-    let ngspice = paprika::PkSpice::new();
-    let manager = PkSpiceManager::new();
-
-    ngspice.init(&manager);
-    ngspice.command("source ac.cir");  // in this case, simulation commands are included inside the netlist and simply sourcing it produces an output.
-    // ngspice.command("source dcop1.cir");  // results pointer array starts at same address
-    // ngspice.command("source tran.cir");  // results pointer array starts at same address
-    ngspice.command("echo hello");
+    let mut manager = PkSpiceManager::new();
+    manager.lib.command("source ac.cir");  // in this case, simulation commands are included inside the netlist and simply sourcing it produces an output.
+    // manager.lib.command("source dcop1.cir");  // results pointer array starts at same address
+    // manager.lib.command("source tran.cir");  // results pointer array starts at same address
+    manager.lib.command("echo hello");
 }
