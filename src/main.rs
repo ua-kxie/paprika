@@ -7,21 +7,21 @@ use paprika::{PkVecvaluesall, PkVecinfoall};
 
 use colored::Colorize;
 
-struct NgSpiceManager{
+struct PkSpiceManager{
     vec_pkvecinfoall: Vec<PkVecinfoall>,
     vec_pkvecvalsall: Vec<PkVecvaluesall>,
 }
-impl NgSpiceManager{
-    fn new() -> NgSpiceManager{
-        NgSpiceManager{
+impl PkSpiceManager{
+    fn new() -> PkSpiceManager{
+        PkSpiceManager{
             vec_pkvecinfoall: Vec::<paprika::PkVecinfoall>::new(),
             vec_pkvecvalsall: Vec::<paprika::PkVecvaluesall>::new(),
         }
     }
 }
 #[allow(unused_variables)]
-impl paprika::NgSpiceManager for NgSpiceManager{
-    fn cb_send_char(&mut self, msg: &str, id: i32) {
+impl paprika::PkSpiceManager for PkSpiceManager{
+    fn cb_send_char(&mut self, msg: String, id: i32) {
         let (token, msgs) = msg.split_once(' ').expect("cb_send_char string split failed");
         let msgc = match token {
             "stdout" => msgs.green(),
@@ -30,7 +30,7 @@ impl paprika::NgSpiceManager for NgSpiceManager{
         };
         println!("{}", msgc);
     }
-    fn cb_send_stat(&mut self, msg: &str, id: i32) {
+    fn cb_send_stat(&mut self, msg: String, id: i32) {
         // println!("send_stat {}; {};", msg.blue(), id);
         println!("{}", msg.blue());
     }
@@ -49,8 +49,8 @@ impl paprika::NgSpiceManager for NgSpiceManager{
     }
 }
 fn main() {
-    let ngspice = paprika::NgSpice::new();
-    let manager = NgSpiceManager::new();
+    let ngspice = paprika::PkSpice::new();
+    let manager = PkSpiceManager::new();
 
     ngspice.init(&manager);
     ngspice.command("source ac.cir");  // in this case, simulation commands are included inside the netlist and simply sourcing it produces an output.

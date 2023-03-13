@@ -8,25 +8,25 @@ use libloading::os::windows::Symbol as RawSymbol;
 use libloading::{Library};
 use libc::*;
 
-extern fn cbw_send_char<T>(msg: *const c_char, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
+extern fn cbw_send_char<T>(msg: *const c_char, id: c_int, user: *const c_void) -> c_int where T: PkSpiceManager{
     unsafe{
-        <T as NgSpiceManager>::cb_send_char(&mut *(user as *mut T), std::ffi::CStr::from_ptr(msg).to_str().unwrap(), id);
+        <T as PkSpiceManager>::cb_send_char(&mut *(user as *mut T), std::ffi::CStr::from_ptr(msg).to_str().unwrap().to_owned(), id);
     }
     0
 }
-extern fn cbw_send_stat<T>(msg: *const c_char, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
+extern fn cbw_send_stat<T>(msg: *const c_char, id: c_int, user: *const c_void) -> c_int where T: PkSpiceManager{
     unsafe {
-        <T as NgSpiceManager>::cb_send_stat(&mut *(user as *mut T), std::ffi::CStr::from_ptr(msg).to_str().unwrap(), id);
+        <T as PkSpiceManager>::cb_send_stat(&mut *(user as *mut T), std::ffi::CStr::from_ptr(msg).to_str().unwrap().to_owned(), id);
     }
     0
 }
-extern fn cbw_controlled_exit<T>(status: c_int, immediate: bool, exit_on_quit: bool, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
+extern fn cbw_controlled_exit<T>(status: c_int, immediate: bool, exit_on_quit: bool, id: c_int, user: *const c_void) -> c_int where T: PkSpiceManager{
     unsafe {
-        <T as NgSpiceManager>::cb_ctrldexit(&mut *(user as *mut T), status, immediate, exit_on_quit, id);
+        <T as PkSpiceManager>::cb_ctrldexit(&mut *(user as *mut T), status, immediate, exit_on_quit, id);
     }
     0
 }
-extern fn cbw_send_data<T>(pvecvaluesall: *const NgVecvaluesall, count: c_int, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
+extern fn cbw_send_data<T>(pvecvaluesall: *const NgVecvaluesall, count: c_int, id: c_int, user: *const c_void) -> c_int where T: PkSpiceManager{
     // do not free pvecvaluesall or pvecvalues - the memory is reused by ngspice
     unsafe{
         let vecvals_slice = std::slice::from_raw_parts((*pvecvaluesall).vecsa, (*pvecvaluesall).count as usize);
@@ -45,21 +45,21 @@ extern fn cbw_send_data<T>(pvecvaluesall: *const NgVecvaluesall, count: c_int, i
         };
         
         // call native callback
-        <T as NgSpiceManager>::cb_send_data(&mut *(user as *mut T), pkvecinfoall, count, id);
+        <T as PkSpiceManager>::cb_send_data(&mut *(user as *mut T), pkvecinfoall, count, id);
     }
     0
 }
-extern fn cbw_send_init_data<T>(pvecinfoall: *const NgVecinfoall, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
+extern fn cbw_send_init_data<T>(pvecinfoall: *const NgVecinfoall, id: c_int, user: *const c_void) -> c_int where T: PkSpiceManager{
     unsafe {
         let vecinfos_slice = std::slice::from_raw_parts((*pvecinfoall).vecs, (*pvecinfoall).veccount as usize);
         // create vec containing 'count' number of PkVecvalues
         let mut pkvecinfos = Vec::<PkVecinfo>::with_capacity((*pvecinfoall).veccount as usize);
-        // for item in vecvals_slice:
+        // for item in vecinfos_slice:
         for item in vecinfos_slice.iter() {
-            // create native PkVecvalues and store into vec
+            // create native PkVecinfo and store into vec
             pkvecinfos.push((*(*item)).to_pk());
         }
-        // create native PkVecvaluesall
+        // create native PkVecInfoall
         let pkvecinfoall = PkVecinfoall{
             name: std::ffi::CStr::from_ptr((*pvecinfoall).name).to_str().unwrap().to_string(),
             title: std::ffi::CStr::from_ptr((*pvecinfoall).title).to_str().unwrap().to_string(),
@@ -69,19 +69,19 @@ extern fn cbw_send_init_data<T>(pvecinfoall: *const NgVecinfoall, id: c_int, use
             vecs: pkvecinfos,
         };
         // call native callback
-        <T as NgSpiceManager>::cb_send_init(&mut *(user as *mut T), pkvecinfoall, id);
+        <T as PkSpiceManager>::cb_send_init(&mut *(user as *mut T), pkvecinfoall, id);
     }
     0
 }
-extern fn cbw_bgthread_running<T>(finished: bool, id: c_int, user: *const c_void) -> c_int where T: NgSpiceManager{
+extern fn cbw_bgthread_running<T>(finished: bool, id: c_int, user: *const c_void) -> c_int where T: PkSpiceManager{
     unsafe {
-        <T as NgSpiceManager>::cb_bgt_state(&mut *(user as *mut T), finished, id);
+        <T as PkSpiceManager>::cb_bgt_state(&mut *(user as *mut T), finished, id);
     }
     0
 }
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
-struct EvtData {
+struct NgEvtData {
     dcop: c_double,
     step: c_int,
     node_value: *const c_char,
@@ -89,7 +89,7 @@ struct EvtData {
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
 struct NgEvtSharedData {
-    evt_dect: *const EvtData,
+    evt_dect: *const NgEvtData,
     num_steps: c_int,
 }
 #[derive(Copy, Clone, Debug)]
@@ -149,7 +149,6 @@ struct NgVecinfoall {
     veccount: c_int,
     vecs: *const *const NgVecinfo,
 }
-
 #[derive(Clone, Debug)]
 pub struct PkVecinfoall{
     pub name: String,
@@ -284,41 +283,41 @@ impl VTableV0 {
     }
 }
 
-pub trait NgSpiceManager {
-    fn cb_send_char(&mut self, msg: &str, id: i32);
-    fn cb_send_stat(&mut self, msg: &str, id: i32);
+pub trait PkSpiceManager {
+    fn cb_send_char(&mut self, msg: String, id: i32);
+    fn cb_send_stat(&mut self, msg: String, id: i32);
     fn cb_ctrldexit(&mut self, status: i32, is_immediate: bool, is_quit: bool, id: i32);
     fn cb_send_data(&mut self, pkvecvaluesall: PkVecvaluesall, count: i32, id: i32);
     fn cb_send_init(&mut self, pkvecinfoall: PkVecinfoall, id: i32);
     fn cb_bgt_state(&mut self, is_fin: bool, id: i32);
 }
 
-pub struct NgSpice {
+pub struct PkSpice {
     #[allow(dead_code)]
     library: Library,
     api: VTableV0
 }
 
-impl Default for NgSpice {
+impl Default for PkSpice {
     fn default() -> Self {
     Self::new()
     }
 }
 
-impl NgSpice {
-    pub fn new() -> NgSpice {
+impl PkSpice {
+    pub fn new() -> PkSpice {
         unsafe {
             let lib = Library::new("src/ngspice.dll").unwrap();
 
             let vtable = VTableV0::new(&lib);
-            NgSpice {
+            PkSpice {
                 library: lib,
                 api: vtable,
             }
         }
     }
 
-    pub fn init<T>(&self, manager: &T) -> bool where T: NgSpiceManager {
+    pub fn init<T>(&self, manager: &T) -> bool where T: PkSpiceManager {
         unsafe{
             println!("addr in {:p}", manager);
             let ret = (self.api.init)(
@@ -340,3 +339,4 @@ impl NgSpice {
         ret != 0
     }
 }
+
