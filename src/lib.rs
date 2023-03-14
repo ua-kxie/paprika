@@ -267,7 +267,6 @@ impl VTableV0 {
         VTableV0 {
             init: VTableV0::get_symbol::<NgSpiceInit>(library, b"ngSpice_Init\0"),
             init_sync: VTableV0::get_symbol::<NgSpiceInitSync>(library, b"ngSpice_Init_Sync\0"),
-            // according to the manual, each command is stored in memory and calling ngSpice_Command(NULL) releases it
             command: VTableV0::get_symbol::<NgSpiceCommand>(library, b"ngSpice_Command\0"),
             get_vec_info: VTableV0::get_symbol::<NgGetVecInfo>(library, b"ngGet_Vec_Info\0"),
             cm_input_path: VTableV0::get_symbol::<NgCMInputPath>(library, b"ngCM_Input_Path\0"),
@@ -334,9 +333,16 @@ impl PkSpice {
     }
 
     pub fn command(&self, command: &str) -> bool {
-        let cmdstr = std::ffi::CString::new(command).unwrap();
-        dbg!(command);
-        let ret = (self.api.command)(cmdstr.as_ptr());
+        let ret = match command {
+            "" => {
+                // according to the manual, each command is stored in memory and calling ngSpice_Command(NULL) releases it
+                (self.api.command)(std::ptr::null())
+            },
+            other => {
+                let cmdstr = std::ffi::CString::new(other).unwrap();
+                (self.api.command)(cmdstr.as_ptr())
+            },
+        };
         ret != 0
     }
 }

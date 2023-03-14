@@ -71,7 +71,7 @@ fn main() {
         let _ = std::io::stdin().read_line(&mut line).unwrap();
         match line.as_str().split_once("\r\n") {
             Some(tup) => {manager.lib.command(tup.0);},
-            None => {println!("{:?}", line);},
+            None => {manager.lib.command(line.as_str());}  // this should only happen for blank inputs {println!("{:?}", line);},
         }
     }
 }
