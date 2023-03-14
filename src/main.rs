@@ -30,7 +30,11 @@ impl PkSpiceManager {
 #[allow(unused_variables)]
 impl paprika::PkSpiceManager for PkSpiceManager{
     fn cb_send_char(&mut self, msg: String, id: i32) {
-        let (token, msgs) = msg.split_once(' ').expect("cb_send_char string split failed");
+        let opt = msg.split_once(' ');
+        let (token, msgs) = match opt {
+            Some(tup) => (tup.0, tup.1),
+            None => (msg.as_str(), msg.as_str()),
+        };
         let msgc = match token {
             "stdout" => msgs.green(),
             "stderr" => msgs.red(),
@@ -57,8 +61,17 @@ impl paprika::PkSpiceManager for PkSpiceManager{
 }
 fn main() {
     let mut manager = PkSpiceManager::new();
-    manager.lib.command("source ac.cir");  // in this case, simulation commands are included inside the netlist and simply sourcing it produces an output.
+    // manager.lib.command("source ac.cir");  // in this case, simulation commands are included inside the netlist and simply sourcing it produces an output.
     // manager.lib.command("source dcop1.cir");  // results pointer array starts at same address
     // manager.lib.command("source tran.cir");  // results pointer array starts at same address
-    manager.lib.command("echo hello");
+    manager.lib.command("source ac.cir");  // results pointer array starts at same address
+    let mut line = String::new();
+    loop{
+        line.clear();
+        let _ = std::io::stdin().read_line(&mut line).unwrap();
+        match line.as_str().split_once("\r\n") {
+            Some(tup) => {manager.lib.command(tup.0);},
+            None => {println!("{:?}", line);},
+        }
+    }
 }

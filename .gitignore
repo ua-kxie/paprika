@@ -4,5 +4,7 @@
 /scratchpad
 # vscode configurations
 /.vscode
+# jetbrains configurations
+/.idea
 # cargo lock
 Cargo.lock
