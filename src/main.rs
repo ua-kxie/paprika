@@ -15,9 +15,9 @@ struct PkSpiceManager{
     vec_pkvecvalsall: Vec<PkVecvaluesall>,
 }
 impl PkSpiceManager {
-    fn new() -> PkSpiceManager {
+    fn new(libpath: &str) -> PkSpiceManager {
         let manager = PkSpiceManager{ 
-            lib: PkSpice::new(), 
+            lib: PkSpice::new(libpath).unwrap(), 
             vec_char: Vec::<String>::new(),
             vec_stat: Vec::<String>::new(),
             vec_pkvecinfoall: Vec::<PkVecinfoall>::new(),
@@ -60,11 +60,7 @@ impl paprika::PkSpiceManager for PkSpiceManager{
     }
 }
 fn main() {
-    let mut manager = PkSpiceManager::new();
-    // manager.lib.command("source ac.cir");  // in this case, simulation commands are included inside the netlist and simply sourcing it produces an output.
-    // manager.lib.command("source dcop1.cir");  // results pointer array starts at same address
-    // manager.lib.command("source tran.cir");  // results pointer array starts at same address
-    manager.lib.command("source ac.cir");  // results pointer array starts at same address
+    let manager = PkSpiceManager::new("src/ngspice.dll");
     let mut line = String::new();
     loop{
         line.clear();

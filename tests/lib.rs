@@ -30,7 +30,7 @@ impl paprika::PkSpiceManager for PkSpiceManager {
 impl PkSpiceManager {
     fn new() -> PkSpiceManager {
         let manager = PkSpiceManager{ 
-            lib: PkSpice::new(), 
+            lib: PkSpice::new("src/ngspice.dll").unwrap(), 
             vec_char: Vec::<String>::new(),
             vec_stat: Vec::<String>::new(),
             vec_pkvecinfoall: Vec::<PkVecinfoall>::new(),
@@ -46,4 +46,9 @@ fn test_cmd_echo() {
     let mut manager = PkSpiceManager::new();
     manager.lib.command("echo hello");
     assert_eq!(manager.vec_char.pop().unwrap(), "stdout hello");
+    // manager.lib.command("source ac.cir");  // in this case, simulation commands are included inside the netlist and simply sourcing it produces an output.
+    // manager.lib.command("source dcop1.cir");  // results pointer array starts at same address
+    // manager.lib.command("source tran.cir");  // results pointer array starts at same address
+    // manager.lib.command("source ac.cir");  // results pointer array starts at same address
+    manager.lib.command("quit");
 }

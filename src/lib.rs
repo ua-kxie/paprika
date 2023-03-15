@@ -8,6 +8,11 @@ use libloading::os::windows::Symbol as RawSymbol;
 use libloading::{Library};
 use libc::*;
 
+#[derive(Debug)]
+pub enum PkSpiceError {
+    SharedspiceNotFound(String),
+}
+
 extern fn cbw_send_char<T>(msg: *const c_char, id: c_int, user: *const c_void) -> c_int where T: PkSpiceManager{
     unsafe{
         <T as PkSpiceManager>::cb_send_char(&mut *(user as *mut T), std::ffi::CStr::from_ptr(msg).to_str().unwrap().to_owned(), id);
@@ -298,22 +303,16 @@ pub struct PkSpice {
     api: VTableV0
 }
 
-impl Default for PkSpice {
-    fn default() -> Self {
-    Self::new()
-    }
-}
-
 impl PkSpice {
-    pub fn new() -> PkSpice {
+    pub fn new(path: &str) -> Result<PkSpice, PkSpiceError> {
         unsafe {
-            let lib = Library::new("src/ngspice.dll").unwrap();
-
-            let vtable = VTableV0::new(&lib);
-            PkSpice {
-                library: lib,
-                api: vtable,
-            }
+            // let lib = Library::new(path);  // todo take arg for lib path, handle lib not found
+            let lib = match Library::new(path) {
+                Ok(lib) => lib,
+                Err(_) => {return Err(PkSpiceError::SharedspiceNotFound(path.to_string()));},
+            };
+            let vtable = VTableV0::new(&lib);  // todo handle symbol not found
+            Ok(PkSpice {library: lib,api: vtable,})
         }
     }
 
