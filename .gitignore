@@ -1,0 +1,10 @@
+# build artefacts
+/target
+# random files for testing code etc
+/scratchpad
+# vscode configurations
+/.vscode
+# jetbrains configurations
+/.idea
+# cargo lock
+Cargo.lock
