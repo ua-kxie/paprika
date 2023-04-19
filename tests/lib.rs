@@ -59,17 +59,17 @@ fn test_cmd_echo() {
     let s = (*buf.write().unwrap()).pop_back().unwrap();
     assert_eq!(s, "stdout echo command");
     spice.command("quit");
-}  // hangs on multiple tests - not sure why
+}  // cannot run tests in parallel
 
-// #[test]
-// fn test_dcop() {
-//     let mut spice = PkSpice::<Manager>::new(OsStr::new("ngspice.dll")).unwrap();
-//     let buf = Arc::new(RwLock::new(VecDeque::<String>::with_capacity(10)));
-//     let manager = Arc::new(Manager::new(buf.clone()));
+#[test]
+fn test_dcop() {
+    let mut spice = PkSpice::<Manager>::new(OsStr::new("ngspice.dll")).unwrap();
+    let buf = Arc::new(RwLock::new(VecDeque::<String>::with_capacity(10)));
+    let manager = Arc::new(Manager::new(buf.clone()));
 
-//     spice.init(Some(manager));  // register
+    spice.init(Some(manager));  // register
 
-//     spice.command("source dcop.cir");
-//     spice.command("op");
-//     spice.command("quit");
-// }
+    spice.command("source dcop.cir");
+    spice.command("op");
+    spice.command("quit");
+}

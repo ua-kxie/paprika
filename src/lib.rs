@@ -170,7 +170,6 @@ impl<T> PkSpice<T> where T: PkSpiceManager {
             else 
             {
                 let ccmdstr = std::ffi::CString::new(cmdstr).unwrap();
-                dbg!(&ccmdstr);
                 (self.api.command)(ccmdstr.as_ptr())
             };
             ret != 0
