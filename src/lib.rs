@@ -198,9 +198,10 @@ impl<T> PkSpice<T> where T: PkSpiceManager {
         }
     }
 
-    pub fn get_all_vecs(&self) -> Vec<String> {
+    pub fn get_all_vecs(&self, plotname: &str) -> Vec<String> {
         unsafe {
-            let ppcstr = (self.api.get_all_plots)();
+            let cplotname = std::ffi::CString::new(plotname).unwrap();
+            let ppcstr = (self.api.get_all_vecs)(cplotname.as_ptr());
             c_strings(ppcstr)
         }
     }
