@@ -1,6 +1,10 @@
 use num_complex::Complex64;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 #[derive(Clone, PartialEq, PartialOrd, Debug)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 /// Struct known as vecvaluesall in Ngspice User's Manual
 pub struct PkVecvaluesall{
     pub count: i32,
@@ -8,6 +12,7 @@ pub struct PkVecvaluesall{
     pub vecsa: Vec<Box<PkVecvalues>>,
 }
 #[derive(Clone, PartialEq, PartialOrd, Debug)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 /// Struct known as vecvalues in Ngspice User's Manual
 pub struct PkVecvalues {
     pub name: String,
@@ -17,6 +22,7 @@ pub struct PkVecvalues {
     pub is_complex: bool,
 }
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 /// Struct known as vecinfoall in Ngspice User's Manual
 pub struct PkVecinfoall{
     pub name: String,
@@ -27,6 +33,7 @@ pub struct PkVecinfoall{
     pub vecs: Vec<Box<PkVecinfo>>,
 }
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 #[allow(dead_code)]
 /// Struct known as vecinfo in Ngspice User's Manual
 pub struct PkVecinfo {
@@ -37,11 +44,13 @@ pub struct PkVecinfo {
     pub pdvecscale: usize,
 }
 #[derive(Copy, Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct PkComplex {
     pub real: f64,
     pub imag: f64,
 }
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct PkVectorinfo {
     pub name: String,
     pub stype: i32,
