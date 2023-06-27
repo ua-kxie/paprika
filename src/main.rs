@@ -1,10 +1,13 @@
-use std::{sync::{Arc, RwLock}, collections::VecDeque};
+use std::{
+    collections::VecDeque,
+    sync::{Arc, RwLock},
+};
 
 // use ::paprika;
-use paprika::*;
 use colored::Colorize;
+use paprika::*;
 #[allow(dead_code)]
-struct Manager{
+struct Manager {
     sharedres: Arc<RwLock<VecDeque<String>>>,
     quit_flag: bool,
     vec_char: Vec<String>,
@@ -14,7 +17,7 @@ struct Manager{
 }
 impl Manager {
     fn new(arvs: Arc<RwLock<VecDeque<String>>>) -> Manager {
-        Manager{ 
+        Manager {
             sharedres: arvs,
             quit_flag: false,
             vec_char: Vec::<String>::new(),
@@ -25,7 +28,7 @@ impl Manager {
     }
 }
 #[allow(unused_variables)]
-impl paprika::PkSpiceManager for Manager{
+impl paprika::PkSpiceManager for Manager {
     fn cb_send_char(&mut self, msg: String, id: i32) {
         let mut arvs = self.sharedres.write().unwrap();
         (*arvs).push_back(msg.clone());
@@ -46,7 +49,10 @@ impl paprika::PkSpiceManager for Manager{
         println!("{}", msg.blue());
     }
     fn cb_ctrldexit(&mut self, status: i32, is_immediate: bool, is_quit: bool, id: i32) {
-        println!("ctrldexit {}; {}; {}; {};", status, is_immediate, is_quit, id);
+        println!(
+            "ctrldexit {}; {}; {}; {};",
+            status, is_immediate, is_quit, id
+        );
         self.quit_flag = true;
     }
     fn cb_send_init(&mut self, pkvecinfoall: PkVecinfoall, id: i32) {
@@ -65,16 +71,16 @@ fn main() {
     let buf = Arc::new(RwLock::new(VecDeque::<String>::with_capacity(10)));
     let manager = Arc::new(Manager::new(buf));
 
-    spice.init(Some(manager));  // register
-    spice.command("source tran.cir");  // results pointer array starts at same address
-    spice.command("tran 10u 10m");  // ngspice recommends sending in control statements separately, not as part of netlist
+    spice.init(Some(manager)); // register
+    spice.command("source tran.cir"); // results pointer array starts at same address
+    spice.command("tran 10u 10m"); // ngspice recommends sending in control statements separately, not as part of netlist
 
-    spice.init(None);  // unregister
+    spice.init(None); // unregister
     spice.command("echo echo command");
 
     // spice.command("source ac.cir");  // results pointer array starts at same address
     // spice.command("ac dec 10 1 100k");  // ngspice recommends sending in control statements separately, not as part of netlist
-    
+
     // // dbg!(manager.lib.running());
     // let a = manager.lib.get_vec_info("tran1.time");
     // let a1 = a.realdata.unwrap();
@@ -89,12 +95,16 @@ fn main() {
     // manager.lib.command(&a.as_str());
 
     let mut line = String::new();
-    loop{
+    loop {
         line.clear();
         let _ = std::io::stdin().read_line(&mut line).unwrap();
         match line.as_str().split_once("\r\n") {
-            Some(tup) => {spice.command(tup.0);},
-            None => {spice.command(line.as_str());}  // this should only happen for blank inputs {println!("{:?}", line);},
+            Some(tup) => {
+                spice.command(tup.0);
+            }
+            None => {
+                spice.command(line.as_str());
+            } // this should only happen for blank inputs {println!("{:?}", line);},
         }
     }
 }

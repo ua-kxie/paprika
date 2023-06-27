@@ -1,20 +1,23 @@
 //! General Notes
-//! 
+//!
 //! Thread Safety
-//! 
+//!
 //! Analysis commands like `tran 10u 10m` in the netlist is executed immediately. Same effect as sending `tran 10u 10m` through `NgSpice_Command`
 //! after loading the netlist.
 //! Dot analysis commands like `.tran 10u 10m` in the netlist is executed after `run` or `bg_run` is sent through `NgSpice_Command`.
 //! Safety must assume that callbacks are called from parallel thread after commanding `bg_run`.
 
-use std::{sync::Arc, ffi::{OsStr, OsString}};
+use std::{
+    ffi::{OsStr, OsString},
+    sync::Arc,
+};
 
+use libc::*;
 #[cfg(unix)]
 use libloading::os::unix::Symbol as RawSymbol;
 #[cfg(windows)]
 use libloading::os::windows::Symbol as RawSymbol;
 use libloading::Library;
-use libc::*;
 mod structs;
 pub use structs::*;
 mod ngspice;
@@ -26,21 +29,23 @@ pub enum PkSpiceError {
     SharedspiceNotFound(OsString),
 }
 
-type NgSpiceInit = extern fn(
-    Option<unsafe extern fn(*const c_char, c_int, *const c_void) -> c_int>, 
-    Option<unsafe extern fn(*const c_char, c_int, *const c_void) -> c_int>, 
-    Option<unsafe extern fn(c_int, bool, bool, c_int, *const c_void) -> c_int>, 
-    Option<unsafe extern fn(*const ngspice::NgVecvaluesall, c_int, c_int, *const c_void) -> c_int>, 
-    Option<unsafe extern fn(*const ngspice::NgVecinfoall, c_int, *const c_void) -> c_int>, 
-    Option<unsafe extern fn(bool, c_int, *const c_void) -> c_int>, 
-    *const c_void, 
+type NgSpiceInit = extern "C" fn(
+    Option<unsafe extern "C" fn(*const c_char, c_int, *const c_void) -> c_int>,
+    Option<unsafe extern "C" fn(*const c_char, c_int, *const c_void) -> c_int>,
+    Option<unsafe extern "C" fn(c_int, bool, bool, c_int, *const c_void) -> c_int>,
+    Option<
+        unsafe extern "C" fn(*const ngspice::NgVecvaluesall, c_int, c_int, *const c_void) -> c_int,
+    >,
+    Option<unsafe extern "C" fn(*const ngspice::NgVecinfoall, c_int, *const c_void) -> c_int>,
+    Option<unsafe extern "C" fn(bool, c_int, *const c_void) -> c_int>,
+    *const c_void,
 ) -> c_int;
-type NgSpiceCommand = extern fn(*const c_char) -> c_int;
-type NgSpiceVecInfo = extern fn(*const c_char) -> *const NgVectorinfo;
-type NgSpiceCurPlot = extern fn() -> *const c_char;
-type NgSpiceAllPlots = extern fn() -> *const *const c_char;
-type NgSpiceAllVecs = extern fn(*const c_char) -> *const *const c_char;
-type NgSpiceRunning = extern fn() -> bool;
+type NgSpiceCommand = extern "C" fn(*const c_char) -> c_int;
+type NgSpiceVecInfo = extern "C" fn(*const c_char) -> *const NgVectorinfo;
+type NgSpiceCurPlot = extern "C" fn() -> *const c_char;
+type NgSpiceAllPlots = extern "C" fn() -> *const *const c_char;
+type NgSpiceAllVecs = extern "C" fn(*const c_char) -> *const *const c_char;
+type NgSpiceRunning = extern "C" fn() -> bool;
 
 #[allow(dead_code)]
 struct VTableV0 {
@@ -53,7 +58,7 @@ struct VTableV0 {
     get_all_plots: RawSymbol<NgSpiceAllPlots>,
     get_all_vecs: RawSymbol<NgSpiceAllVecs>,
     is_running: RawSymbol<NgSpiceRunning>,
-} 
+}
 
 impl VTableV0 {
     unsafe fn get_symbol<T>(lib: &Library, sname: &[u8]) -> RawSymbol<T> {
@@ -97,25 +102,37 @@ pub trait PkSpiceManager {
     fn cb_bgt_state(&mut self, is_fin: bool, id: i32);
 }
 /// Represents a link to the sharedspice library
-pub struct PkSpice<T> where T: PkSpiceManager {
+pub struct PkSpice<T>
+where
+    T: PkSpiceManager,
+{
     #[allow(dead_code)]
     library: Library,
     api: VTableV0,
     manager: Option<Arc<T>>,
 }
 
-impl<T> PkSpice<T> where T: PkSpiceManager {
-    /// Links to a sharedspice library given by path. 
-    /// Returns error if the file given by path does not exist. 
+impl<T> PkSpice<T>
+where
+    T: PkSpiceManager,
+{
+    /// Links to a sharedspice library given by path.
+    /// Returns error if the file given by path does not exist.
     /// Crashes if any expected symbols are not found, which will happen if path points to an incorrect file, or to a much older version of sharedspice.
     pub fn new(path: &std::ffi::OsStr) -> Result<PkSpice<T>, PkSpiceError> {
         unsafe {
             let lib = match Library::new(path) {
                 Ok(lib) => lib,
-                Err(_) => {return Err(PkSpiceError::SharedspiceNotFound(path.to_os_string()));},
+                Err(_) => {
+                    return Err(PkSpiceError::SharedspiceNotFound(path.to_os_string()));
+                }
             };
-            let vtable = VTableV0::new(&lib);  // todo handle symbol not found
-            Ok(PkSpice {library: lib, api: vtable, manager: None,})
+            let vtable = VTableV0::new(&lib); // todo handle symbol not found
+            Ok(PkSpice {
+                library: lib,
+                api: vtable,
+                manager: None,
+            })
         }
     }
     /// API function known as ngSpice_Init in Ngspice User's Manual
@@ -124,33 +141,25 @@ impl<T> PkSpice<T> where T: PkSpiceManager {
         // keep reference to new manager
         unsafe {
             match manager {
-                Some(m) => 
-                {
+                Some(m) => {
                     let ret1 = (self.api.init)(
-                        Some(cbw_send_char::<T>), 
-                        Some(cbw_send_stat::<T>), 
-                        Some(cbw_controlled_exit::<T>), 
-                        Some(cbw_send_data::<T>), 
-                        Some(cbw_send_init_data::<T>), 
-                        Some(cbw_bgthread_running::<T>), 
+                        Some(cbw_send_char::<T>),
+                        Some(cbw_send_stat::<T>),
+                        Some(cbw_controlled_exit::<T>),
+                        Some(cbw_send_data::<T>),
+                        Some(cbw_send_init_data::<T>),
+                        Some(cbw_bgthread_running::<T>),
                         &*m as *const _ as *const c_void,
                     );
-                    self.manager = Some(m);  // drop the previous manager, AFTER the new manager is registered
+                    self.manager = Some(m); // drop the previous manager, AFTER the new manager is registered
                     ret1
-                },
+                }
                 None => {
-                    let ret1 = (self.api.init)(
-                        None, 
-                        None, 
-                        None, 
-                        None, 
-                        None, 
-                        None, 
-                        std::ptr::null(),
-                    );
-                    self.manager = None;  // drop the previous manager, AFTER the new manager is registered
+                    let ret1 =
+                        (self.api.init)(None, None, None, None, None, None, std::ptr::null());
+                    self.manager = None; // drop the previous manager, AFTER the new manager is registered
                     ret1
-                },
+                }
             }
         }
     }
@@ -158,17 +167,13 @@ impl<T> PkSpice<T> where T: PkSpiceManager {
     /// If cmdstr is an empty string, NULL is sent to ngSpice_Command, which clears the internal control structures.
     pub fn command(&self, cmdstr: &str) -> bool {
         unsafe {
-            let ret = if cmdstr.is_empty()
-            {
+            let ret = if cmdstr.is_empty() {
                 (self.api.command)(std::ptr::null())
-            } 
+            }
             // have users spawn their own threads instead
-            else if cmdstr.find("bg_") == Some(0) 
-            {
+            else if cmdstr.find("bg_") == Some(0) {
                 0
-            } 
-            else 
-            {
+            } else {
                 let ccmdstr = std::ffi::CString::new(cmdstr).unwrap();
                 (self.api.command)(ccmdstr.as_ptr())
             };
@@ -187,7 +192,10 @@ impl<T> PkSpice<T> where T: PkSpiceManager {
     pub fn get_cur_plot(&self) -> String {
         unsafe {
             let pcstr = (self.api.get_cur_plot)();
-            std::ffi::CStr::from_ptr(pcstr).to_str().unwrap().to_string()
+            std::ffi::CStr::from_ptr(pcstr)
+                .to_str()
+                .unwrap()
+                .to_string()
         }
     }
 
@@ -207,22 +215,21 @@ impl<T> PkSpice<T> where T: PkSpiceManager {
     }
 
     pub fn is_running(&self) -> bool {
-        unsafe {
-            (self.api.is_running)()
-        }
+        unsafe { (self.api.is_running)() }
     }
 }
 
-unsafe fn c_strings (
-    ptr: *const *const c_char,
-) -> Vec<String>
-{
+unsafe fn c_strings(ptr: *const *const c_char) -> Vec<String> {
     // safety requires
     // all pointers point to valid memory
     // pointer to array of null-terminated array of pointers, each of which point to a null-terminated string
     let mut len = 0;
     loop {
-        if (*(ptr.add(len))).is_null() {break} else {len+=1}
+        if (*(ptr.add(len))).is_null() {
+            break;
+        } else {
+            len += 1
+        }
     }
     let s = std::slice::from_raw_parts(ptr, len);
     let mut vec = Vec::<String>::with_capacity(len);

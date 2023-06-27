@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, PartialEq, PartialOrd, Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 /// Struct known as vecvaluesall in Ngspice User's Manual
-pub struct PkVecvaluesall{
+pub struct PkVecvaluesall {
     pub count: i32,
     pub index: i32,
     pub vecsa: Vec<Box<PkVecvalues>>,
@@ -24,7 +24,7 @@ pub struct PkVecvalues {
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 /// Struct known as vecinfoall in Ngspice User's Manual
-pub struct PkVecinfoall{
+pub struct PkVecinfoall {
     pub name: String,
     pub title: String,
     pub date: String,
@@ -40,7 +40,7 @@ pub struct PkVecinfo {
     pub number: i32,
     pub name: String,
     pub is_real: bool,
-    pub pdvec: usize,  
+    pub pdvec: usize,
     pub pdvecscale: usize,
 }
 #[derive(Copy, Clone, Debug)]

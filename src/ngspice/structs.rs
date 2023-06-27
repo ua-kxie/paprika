@@ -1,5 +1,5 @@
-use libc::*;
 use crate::structs::*;
+use libc::*;
 use std::ffi::CStr;
 // use super::super::pubstructs;
 use num_complex::Complex64;
@@ -29,14 +29,15 @@ pub struct NgVectorinfo {
     v_name: *const c_char,
     v_type: c_int,
     v_flag: c_short,
-    v_realdata: *const c_double,  // only one of real or complex is legit?
+    v_realdata: *const c_double, // only one of real or complex is legit?
     v_compdata: *const NgComplex,
     v_length: c_int,
 }
 impl NgVectorinfo {
     pub unsafe fn to_pk(self) -> PkVectorinfo {
         let (real, comp) = match self.v_type {
-            1 => {  // real
+            1 => {
+                // real
                 let cvec = std::slice::from_raw_parts(self.v_realdata, self.v_length as usize);
                 // create vec containing 'count' number of PkVecvalues
                 let mut vec = Vec::<f64>::with_capacity(self.v_length as usize);
@@ -46,22 +47,29 @@ impl NgVectorinfo {
                     vec.push(*item);
                 }
                 (Some(vec), None)
-            }, // real
-            2 => {  // complex
+            } // real
+            2 => {
+                // complex
                 let cvec = std::slice::from_raw_parts(self.v_compdata, self.v_length as usize);
                 // create vec containing 'count' number of PkVecvalues
                 let mut vec = Vec::<Complex64>::with_capacity(self.v_length as usize);
                 // for item in vecinfos_slice:
                 for item in cvec.iter() {
                     // create native PkVecinfo and store into vec
-                    vec.push(Complex64{re: item.cx_real, im: item.cx_imag});
+                    vec.push(Complex64 {
+                        re: item.cx_real,
+                        im: item.cx_imag,
+                    });
                 }
                 (None, Some(vec))
-            }, // complex
+            } // complex
             _ => (None, None), // dunno,
         };
-        PkVectorinfo{
-            name: std::ffi::CStr::from_ptr(self.v_name).to_str().unwrap().to_string(),
+        PkVectorinfo {
+            name: std::ffi::CStr::from_ptr(self.v_name)
+                .to_str()
+                .unwrap()
+                .to_string(),
             stype: self.v_type,
             flag: self.v_flag,
             realdata: real,
@@ -76,14 +84,17 @@ struct NgVecinfo {
     number: c_int,
     vecname: *const c_char,
     is_real: bool,
-    pdvec: *const c_void,  // not elaborated in the docs - not sure if intended for use
-    pdvecscale: *const c_void,  // not elaborated in the docs - not sure if intended for use
+    pdvec: *const c_void, // not elaborated in the docs - not sure if intended for use
+    pdvecscale: *const c_void, // not elaborated in the docs - not sure if intended for use
 }
 impl NgVecinfo {
     pub unsafe fn to_pk(self) -> PkVecinfo {
-        PkVecinfo{
+        PkVecinfo {
             number: self.number,
-            name: std::ffi::CStr::from_ptr(self.vecname).to_str().unwrap().to_string(),
+            name: std::ffi::CStr::from_ptr(self.vecname)
+                .to_str()
+                .unwrap()
+                .to_string(),
             is_real: self.is_real,
             pdvec: self.pdvec as usize,
             pdvecscale: self.pdvecscale as usize,
@@ -111,7 +122,7 @@ impl NgVecinfoall {
             pkvecinfos.push(Box::<PkVecinfo>::new((*(*item)).to_pk()));
         }
         // create native PkVecInfoall
-        PkVecinfoall{
+        PkVecinfoall {
             name: CStr::from_ptr(self.name).to_str().unwrap().to_string(),
             title: CStr::from_ptr(self.title).to_str().unwrap().to_string(),
             date: CStr::from_ptr(self.date).to_str().unwrap().to_string(),
@@ -129,12 +140,15 @@ struct NgVecvalues {
     creal: c_double,
     cimag: c_double,
     is_scale: bool,
-    is_complex: bool
+    is_complex: bool,
 }
 impl NgVecvalues {
     pub unsafe fn to_pk(self) -> PkVecvalues {
-        PkVecvalues{
-            name: std::ffi::CStr::from_ptr(self.name).to_owned().into_string().unwrap(),
+        PkVecvalues {
+            name: std::ffi::CStr::from_ptr(self.name)
+                .to_owned()
+                .into_string()
+                .unwrap(),
             creal: self.creal,
             cimag: self.cimag,
             is_scale: self.is_scale,
@@ -160,10 +174,10 @@ impl NgVecvaluesall {
             pkvecvalues.push(Box::<PkVecvalues>::new((*(*item)).to_pk()));
         }
         // create native PkVecvaluesall
-        PkVecvaluesall{
-            count: self.count, 
-            index: self.index, 
-            vecsa: pkvecvalues
+        PkVecvaluesall {
+            count: self.count,
+            index: self.index,
+            vecsa: pkvecvalues,
         }
     }
 }

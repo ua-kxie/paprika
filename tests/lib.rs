@@ -4,7 +4,7 @@ use std::sync::{Arc, RwLock};
 
 use paprika::*;
 
-struct Manager{
+struct Manager {
     sharedres: Arc<RwLock<VecDeque<String>>>,
     quit_flag: bool,
     vec_char: Vec<String>,
@@ -14,7 +14,7 @@ struct Manager{
 }
 impl Manager {
     fn new(arvs: Arc<RwLock<VecDeque<String>>>) -> Manager {
-        Manager{ 
+        Manager {
             sharedres: arvs,
             quit_flag: false,
             vec_char: Vec::<String>::new(),
@@ -25,15 +25,17 @@ impl Manager {
     }
 }
 #[allow(unused_variables)]
-impl paprika::PkSpiceManager for Manager{
+impl paprika::PkSpiceManager for Manager {
     fn cb_send_char(&mut self, msg: String, id: i32) {
         let mut arvs = self.sharedres.write().unwrap();
         (*arvs).push_back(msg.clone());
     }
-    fn cb_send_stat(&mut self, msg: String, id: i32) {
-    }
+    fn cb_send_stat(&mut self, msg: String, id: i32) {}
     fn cb_ctrldexit(&mut self, status: i32, is_immediate: bool, is_quit: bool, id: i32) {
-        println!("ctrldexit {}; {}; {}; {};", status, is_immediate, is_quit, id);
+        println!(
+            "ctrldexit {}; {}; {}; {};",
+            status, is_immediate, is_quit, id
+        );
         self.quit_flag = true;
     }
     fn cb_send_init(&mut self, pkvecinfoall: PkVecinfoall, id: i32) {
@@ -53,13 +55,13 @@ fn test_cmd_echo() {
     let buf = Arc::new(RwLock::new(VecDeque::<String>::with_capacity(10)));
     let manager = Arc::new(Manager::new(buf.clone()));
 
-    spice.init(Some(manager));  // register
+    spice.init(Some(manager)); // register
 
     spice.command("echo echo command");
     let s = (*buf.write().unwrap()).pop_back().unwrap();
     assert_eq!(s, "stdout echo command");
     spice.command("quit");
-}  // cannot run tests in parallel
+} // cannot run tests in parallel
 
 #[test]
 fn test_dcop() {
@@ -67,7 +69,7 @@ fn test_dcop() {
     let buf = Arc::new(RwLock::new(VecDeque::<String>::with_capacity(10)));
     let manager = Arc::new(Manager::new(buf.clone()));
 
-    spice.init(Some(manager));  // register
+    spice.init(Some(manager)); // register
 
     spice.command("source dcop.cir");
     spice.command("op");
