@@ -1,8 +1,6 @@
 use crate::structs::*;
 use libc::*;
 use std::ffi::CStr;
-// use super::super::pubstructs;
-use num_complex::Complex64;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
@@ -52,11 +50,11 @@ impl NgVectorinfo {
                 // complex
                 let cvec = std::slice::from_raw_parts(self.v_compdata, self.v_length as usize);
                 // create vec containing 'count' number of PkVecvalues
-                let mut vec = Vec::<Complex64>::with_capacity(self.v_length as usize);
+                let mut vec = Vec::<num::Complex<f64>>::with_capacity(self.v_length as usize);
                 // for item in vecinfos_slice:
                 for item in cvec.iter() {
                     // create native PkVecinfo and store into vec
-                    vec.push(Complex64 {
+                    vec.push(num::Complex::<f64> {
                         re: item.cx_real,
                         im: item.cx_imag,
                     });

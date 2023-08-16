@@ -13,8 +13,8 @@ path = "src/lib.rs"
 libloading = "0.7"
 libc = "0.2"
 colored = "2.0"
-num-complex = "0.4"
 serde = { version = "1.0", optional = true, features = ["derive"]}
+num = "0.4.1"
 
 [features]
-serde = ["dep:serde", "num-complex/serde"]
+serde = ["dep:serde", "num/serde"]

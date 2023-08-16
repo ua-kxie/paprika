@@ -1,5 +1,3 @@
-use num_complex::Complex64;
-
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +19,13 @@ pub struct PkVecvalues {
     pub is_scale: bool,
     pub is_complex: bool,
 }
+
+impl From<PkVecvalues> for num::Complex<f32> {
+    fn from(value: PkVecvalues) -> Self {
+        Self { re: value.creal as f32, im: value.cimag as f32 }
+    }
+}
+
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 /// Struct known as vecinfoall in Ngspice User's Manual
@@ -56,6 +61,6 @@ pub struct PkVectorinfo {
     pub stype: i32,
     pub flag: i16,
     pub realdata: Option<Vec<f64>>,
-    pub compdata: Option<Vec<Complex64>>,
+    pub compdata: Option<Vec<num::Complex<f64>>>,
     pub length: i32,
 }
